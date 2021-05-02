@@ -1,0 +1,18 @@
+version: '3'
+
+services:
+
+  # Back-end Spring boot application
+  bibliotheque-app:
+    build:
+      context: ./
+      args:
+        maven_build_env: mvn -f pom.xml clean package
+
+    container_name: bibliotheque-app-local
+
+    ports:
+      - 8080:8080
+
+volumes:
+  bibliotheque-data:

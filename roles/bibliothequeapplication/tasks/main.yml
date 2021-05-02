@@ -1,0 +1,86 @@
+---
+
+# BUILD PREPROD APP IMAGE FROM NEXUS AND PUSH DOCKERHUB
+- name: Build preprod app image from nexus and send it to DockerHub
+  docker_image:
+    build:
+      path: "{{ role_path }}/files/app"
+      args:
+        nexus_server: "{{ nexus_host }}"
+        version: maven-snapshots
+    state: present
+    source: build
+    name: dhaeseq/projet-fil-rouge-groupe2:bibliotheque-app-preprod
+    tag: latest
+    push: yes
+  when: inventory_hostname == "localhost"
+  tags:
+    - buildAndPushPreprodAppNexusImage
+
+# REMOVE PREPROD LOCAL IMAGE
+- name: Remove preprod app local image
+  docker_image:
+    state: absent
+    name:  dhaeseq/projet-fil-rouge-groupe2
+    tag: bibliotheque-app-preprod
+    force_absent: yes
+  when: inventory_hostname != "prodfilrouge"
+  tags:
+    - buildAndPushPreprodAppNexusImage
+    - removePreprodLocalAppImage
+
+# BUILD PROD APP IMAGE FROM NEXUS AND PUSH DOCKERHUB
+- name: Build prod app image from nexus and send it to DockerHub
+  docker_image:
+    build:
+      path: "{{ role_path }}/files/app"
+      args:
+        nexus_server: "{{ nexus_host }}"
+        version: maven-releases
+    state: present
+    source: build
+    name: dhaeseq/projet-fil-rouge-groupe2:bibliotheque-app-prod
+    tag: latest
+    push: yes
+  when: inventory_hostname == "localhost"
+  tags:
+    - buildAndPushProdAppNexusImage
+
+# REMOVE PROD LOCAL IMAGE
+- name: Remove prod app local image
+  docker_image:
+    state: absent
+    name:  dhaeseq/projet-fil-rouge-groupe2
+    tag: bibliotheque-app-prod
+    force_absent: yes
+  when: inventory_hostname != "devfilrouge"
+  tags:
+    - buildAndPushProdAppNexusImage
+    - removeProdLocalAppImage
+
+# RUN APP IMAGE
+- name: Run app image
+  docker_container:
+    detach: yes
+    image: dhaeseq/projet-fil-rouge-groupe2:bibliotheque-app-{{ env }}
+    pull: yes
+    recreate: yes
+    name: bibliotheque-app
+    env:
+      SPRING_PROFILES_ACTIVE: "{{ env }}"
+      SPRING_DATASOURCE_PASSWORD: "{{ pg_password }}"
+    published_ports:
+      - 8080:8443
+    restart_policy: always
+  when: inventory_hostname in groups.filrougeservers
+  tags:
+    - RunAppImage
+    - freshInstallApplication
+
+# PRUNE IMAGES
+- name: Prune docker images
+  docker_prune:
+    images: yes
+  tags:
+    - pruneImages
+    - freshInstallApplication
